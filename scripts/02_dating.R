@@ -6,13 +6,13 @@ library(lubridate)
 library(ggtree) # from bioconductor
 library(ggplot2)
 
-# IMPORTANT: added 50 Ns for all seqs at beginning of alignment and 10-25 Ns for all at the end 
+# IMPORTANT: added 50 Ns for all seqs at beginning of alignment and 10-36 Ns for all at the end 
 # before estimating tree
 
 TR_DIR <- "results/2026_06_01_2pm/" #10 seqs: 2026_05_27_6pm
 tr <-read.tree(glue("{TR_DIR}/bdbv.treefile"))
 plot(tr, show.tip.label = T)
-aln_len <- 18940 - 50 - 25 #10
+aln_len <- 18940 - 50 - 36 #10
 
 DATA_DIR <- "data/2026_06_01_2pm/" #2026_05_27_6pm
 F_NAME <- "ebola-bdbv_metadata_2026-06-01T1246.tsv" #ebola-bdbv_metadata_2026-05-27T1700.tsv
@@ -41,9 +41,9 @@ td <- dater(tr, sts, s=aln_len,  clock="strict",
             maxit=1000, searchRoot=5, numStartConditions=10, quiet=F, ncpu=4)
 plot(td, show.tip.label = T)
 
-td$mean.rate # 0.004111753 (vs 0.00172937 10 seqs)
+td$mean.rate # 0.004114445 (vs 0.00172937 10 seqs)
 td$adjusted.mean.rate # same
-date_decimal(td$timeOfMRCA) # "2026-04-26 08:03:47 UTC" (vs "2026-03-21 05:05:54 UTC")
+date_decimal(td$timeOfMRCA) # "2026-04-26 08:03:30 UTC" (vs "2026-03-21 05:05:54 UTC")
 
 rootToTipRegressionPlot(td)
 # Root-to-tip mean rate: 0.00426188822310258 
