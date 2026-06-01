@@ -1,9 +1,11 @@
 
-DATA="data/2026_05_27_6pm"
-RES_FOLDER="results/2026_05_27_6pm"
+DATA="data/2026_06_01_2pm" #2026_05_27_6pm
+RES_FOLDER="results/2026_06_01_2pm" #2026_05_27_6pm
+F_NAME="ebola-bdbv_aligned-ADJUSTED-nuc_2026-06-01T1246.fasta" #ebola-bdbv_aligned-ADJUSTED-nuc_2026-05-27T1700.fasta
+
 mkdir -p $RES_FOLDER
 iqtree2 \
-  -s "$DATA/ebola-bdbv_aligned-ADJUSTED-nuc_2026-05-27T1700.fasta" \
+  -s "$DATA/$F_NAME" \
   -m MFP \
   -B 1000 \
   --bnni \
