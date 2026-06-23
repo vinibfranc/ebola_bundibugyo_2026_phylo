@@ -5,6 +5,9 @@ library(treedater) # install.github
 library(lubridate)
 library(ggtree) # from bioconductor
 library(ggplot2)
+#devtools::install_github("xavierdidelot/BactDating")
+#devtools::install_github("xavierdidelot/DiagnoDating")
+library(DiagnoDating,quietly=T)
 
 # IMPORTANT: added 50 Ns for all seqs at beginning of alignment and 10-36 Ns for all at the end 
 # before estimating tree
@@ -56,7 +59,7 @@ pb <- treedater::parboot(td, nreps=1000, ncpu=4, quiet=F,
 plot(pb)
 pb$timeOfMRCA_CI
 date_decimal(as.numeric(pb$timeOfMRCA_CI))
-# 2026-03-23 to 2026-04-30 (vs 2023-02-09 to 2026-04-24)
+# 2026-03-24 to 2026-04-30 (vs 2023-02-09 to 2026-04-24)
 pb$meanRate_CI # 0.001647883 0.010259537 (vs 0.0001876817 0.0159350741)
 
 # suggestion 1: similar to Rambaut's fixed rates analysis, but bounds to rate rather than testing only two
@@ -84,7 +87,7 @@ date_decimal(td_additive_fixed_rate$timeOfMRCA) # 2026-04-14 (vs 2026-03-18)
 pb_additive_fixed_rate <- treedater::parboot(td_additive_fixed_rate, nreps=1000, ncpu=4, quiet=F, overrideTempConstraint=F, overrideSearchRoot=F)
 pb_additive_fixed_rate$timeOfMRCA_CI
 date_decimal(as.numeric(pb_additive_fixed_rate$timeOfMRCA_CI))
-# 2026-03-05 to 2026-04-18 (vs 2023-02-06 to 2026-04-14)
+# 2026-03-04 to 2026-04-18 (vs 2023-02-06 to 2026-04-14)
 pb_additive_fixed_rate$meanRate_CI # 0.001316129 0.002742892 (vs 0.001148926 0.002369057)
 
 # plot tree (meanRateLimits disabled and strict clock, first version)
