@@ -153,15 +153,22 @@ run_diagno_diagnostics <- function(
   message("[2/6] Plotting dated tree ...")
   fname2 <- open_png(nm, 2, "dated_tree")
   tryCatch({
-   if (r$algo == "treedater") {
-    plot(r)
-    ape::axisPhylo(backward=F)
+   # Do NOT modify r$tree — plot() uses it as-is
+   # For treedater: r$tree branch lengths are in years (calendar time)
+   # For BactDating: r$tree branch lengths are in substitutions
+   # Both axes show the correct units for their respective method
+   plot(r)
+   
+   # Add a subtitle clarifying the x-axis units per method
+   units_label <- if (r$algo == "treedater") {
+    "x-axis: decimal year (calendar time) | branch lengths in years"
    } else {
-    plot(r)
+    "x-axis: decimal year | branch lengths in substitutions"
    }
-   #axisPhylo(backward=F)
+   mtext(units_label, side = 1, line = 3, cex = 0.75, col = "grey40")
+   
   }, error = function(e) {
-   message("WARNING – plot(r) failed: ", conditionMessage(e))
+   message("    WARNING – plot(r) failed: ", conditionMessage(e))
    plot.new()
    title(main = paste("plot(r) FAILED\n", conditionMessage(e)), col.main = "red")
   })
@@ -196,17 +203,35 @@ run_diagno_diagnostics <- function(
   message("    Saved: ", fname3)
   
   # Step 4: Likelihood of branches
-  message("  [4/6] Plotting branch likelihoods ...")
+  message("[4/6] Plotting branch likelihoods ...")
   fname4 <- open_png(nm, 4, "lik_branches")
   tryCatch({
+   
+   # Do NOT modify r — plotLikBranches() uses r$tree and r$resid as-is.
+   # For treedater: x-axis (branch duration) is in years, y-axis rate
+   # is in subst/site/year — these are the native treedater units.
+   # For BactDating: x-axis is in years, y-axis rate is in subst/year.
+   # Scaling would corrupt the internal consistency of the object.
    plotLikBranches(r)
+   
+   # Annotate with units so the reader knows what they are looking at
+   rate_units <- if (r$algo == "treedater") {
+    "Rate units: subst/site/year | Duration units: years"
+   } else {
+    "Rate units: subst/year | Duration units: years"
+   }
+   mtext(rate_units, side = 1, line = 0.5, outer = TRUE,
+         cex = 0.75, col = "grey40")
+   
   }, error = function(e) {
    message("WARNING – plotLikBranches() failed: ", conditionMessage(e))
    plot.new()
-   title(main = paste("plotLikBranches FAILED\n", conditionMessage(e)), col.main = "red")
+   title(main = paste("plotLikBranches FAILED\n", conditionMessage(e)),
+         col.main = "red")
   })
   dev.off()
   message("Saved: ", fname4)
+  
   
   # Step 5: Residuals
   message("[5/6] Plotting residuals ...")
