@@ -11,22 +11,24 @@ library(ggplot2)
 library(DiagnoDating,quietly=T)
 library(DescTools)
 
-# IMPORTANT: added 50 Ns for all seqs at beginning of alignment and 10-36 Ns for all at the end 
-# before estimating tree
+# 2026_05_27_6pm, 2026_06_01_2pm
+TR_DIR <- "results/2026_07_09_5pm/"
+#tr <-read.tree(glue("{TR_DIR}/bdbv.treefile"))
+plot(tr3, show.tip.label = T)
+# 18940 - 10
+# 18940 - 50 - 36
+aln_len <- 18900 - 65 - 432 
 
-TR_DIR <- "results/2026_06_01_2pm/" #10 seqs: 2026_05_27_6pm
-tr <-read.tree(glue("{TR_DIR}/bdbv.treefile"))
-plot(tr, show.tip.label = T)
-aln_len <- 18940 - 50 - 36 #10
-
-DATA_DIR <- "data/2026_06_01_2pm/" #2026_05_27_6pm
-F_NAME <- "ebola-bdbv_metadata_2026-06-01T1246.tsv" #ebola-bdbv_metadata_2026-05-27T1700.tsv
+# 2026_05_27_6pm, 2026_06_01_2pm
+DATA_DIR <- "data/2026_07_09_5pm/" 
+# ebola-bdbv_metadata_2026-05-27T1700.tsv, ebola-bdbv_metadata_2026-06-01T1246.tsv
+F_NAME <- "ebola-bdbv_metadata_2026-07-09T1550.tsv"
 md <- read.csv(glue("{DATA_DIR}/{F_NAME}"), sep="\t")
 
-length(intersect(tr$tip.label, md$accessionVersion)) #15
-md_match <- md %>% filter(accessionVersion %in% tr$tip.label)
-md_match <- md_match %>% slice(match(tr$tip.label, accessionVersion))
-all(tr$tip.label == md_match$accessionVersion)
+length(intersect(tr3$tip.label, md$accessionVersion)) #15
+md_match <- md %>% filter(accessionVersion %in% tr3$tip.label)
+md_match <- md_match %>% dplyr::slice(match(tr3$tip.label, accessionVersion))
+all(tr3$tip.label == md_match$accessionVersion)
 md_match$sampleCollectionDate <- as.Date(md_match$sampleCollectionDate)
 md_match$num_date <- decimal_date(md_match$sampleCollectionDate)
 
@@ -34,26 +36,27 @@ sts <- md_match$num_date
 names(sts) <- md_match$accessionVersion
 
 # rates <- c(0.0012, 0.0019)
-summary(tr$edge.length)
-sum(tr$edge.length)
-max(tr$edge.length)
-hist(tr$edge.length, breaks = 50)
-tr2 <- tr
-tr2$edge.length <- tr2$edge.length * aln_len
-hist(tr2$edge.length, breaks = 50)
+summary(tr3$edge.length)
+sum(tr3$edge.length)
+max(tr3$edge.length)
+hist(tr3$edge.length, breaks = 50)
+tr4 <- tr3
+tr4$edge.length <- tr4$edge.length * aln_len
+hist(tr4$edge.length, breaks = 50)
 
-bactdate_rate12 <- runDating(tree=tr2, dates=sts, algo = "BactDating", rate=0.0012*aln_len, keepRoot=F) #... ?bactdate shows all additional params
-# Result from BactDating, model poisson, clock rate 22.62 subst/year, relaxation parameter 0.00, root date 2026.18
-bactdate_rate19 <- runDating(tree=tr2, dates=sts, algo = "BactDating", rate=0.0019*aln_len, keepRoot=F)
-# Result from BactDating, model poisson, clock rate 35.82, relaxation parameter 0.00, root date 2026.24
+#bactdate_rate12 <- runDating(tree=tr4, dates=sts, algo = "BactDating", rate=0.0012*aln_len, keepRoot=F) #... ?bactdate shows all additional params
+bactdate_rate10 <- runDating(tree=tr4, dates=sts, algo = "BactDating", rate=0.0010*aln_len, keepRoot=F)
+# Result from BactDating, model poisson, clock rate 22.08 subst/year, relaxation parameter 0.00, root date 2026.12 (mid-Feb)
+bactdate_rate19 <- runDating(tree=tr4, dates=sts, algo = "BactDating", rate=0.0019*aln_len, keepRoot=F)
+# Result from BactDating, model poisson, clock rate 34.97, relaxation parameter 0.00, root date 2026.20 (mid-March)
 
-# tr2
-treedater_additive <- runDating(tree=tr, dates=sts, algo = "treedater", keepRoot=F, # rate=...
-                                clock="additive", meanRateLimits = c(0.0012, 0.0019), 
+# tr4
+treedater_additive <- runDating(tree=tr3, dates=sts, algo = "treedater", keepRoot=F, # rate=...
+                                clock="additive", meanRateLimits = c(0.0009, 0.0019), 
                                 maxit=1000, searchRoot=5, numStartConditions=10, quiet=F, ncpu=4)
-# Result from treedater, model poisson, clock rate 1.31, relaxation parameter 0.00, root date 2026.33
+# Result from treedater, model poisson, clock rate 1.20, relaxation parameter 0.00, root date 2026.33 (1st May)
 
-#attributes(bactdate_rate12)
+#attributes(bactdate_rate10)
 #attributes(treedater_additive)
 
 # function to run diagno_dating diags on all three trees above
@@ -61,9 +64,7 @@ treedater_additive <- runDating(tree=tr, dates=sts, algo = "treedater", keepRoot
 run_diagno_diagnostics <- function(
   dated_trees, sts, aln_len,
   out_dir = "results/diagno_diagnostics",
-  width = 1200, height = 900, res = 300,
-  ppcheck_nrep = 1000
-) {
+  width = 1200, height = 900, res = 300, ppcheck_nrep = 1000) {
  
  # Sanity checks
  stopifnot(is.list(dated_trees))
@@ -104,7 +105,7 @@ run_diagno_diagnostics <- function(
   
   # Scale per-site → substitution counts ONLY for treedater.
   # BactDating inputtree is already in substitution counts
-  # (tr2 = tr * aln_len was passed to runDating()).
+  # (tr4 = tr * aln_len was passed to runDating()).
   if (r$algo == "treedater") {
    tr_in$edge.length <- tr_in$edge.length #* aln_len
   }
@@ -282,7 +283,7 @@ run_diagno_diagnostics <- function(
 }
 
 dated_trees <- list(
- bactdate_rate12 = bactdate_rate12, bactdate_rate19 = bactdate_rate19,
+ bactdate_rate10 = bactdate_rate10, bactdate_rate19 = bactdate_rate19,
  treedater_additive = treedater_additive
 )
 
