@@ -6,7 +6,7 @@ library(ggtree)
 NCPU <- 4
 PROF_CONTROL_LIST <- list(logtaulb = 0, logtauub = 50, res = 51, ncpu = NCPU)
 
-cod_fit_bdbv <- codls( td_additive_fixed_rate3, logtau = NULL, 
+cod_fit_bdbv <- codls( td_additive_fixed_rate2, logtau = NULL, 
                        profcontrol = PROF_CONTROL_LIST)
 
 COD_DIR <- "results/cod"

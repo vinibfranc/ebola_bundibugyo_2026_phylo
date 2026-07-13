@@ -44,6 +44,8 @@ plot(tr_rooted, show.tip.label = T)
 tr_drop_outgroup <- drop.tip(tr_rooted, tip="NC_014373")
 plot(tr_drop_outgroup, show.tip.label = T)
 
+#tr_drop_outgroup2 <- unroot(tr_drop_outgroup)
+
 # tr
 td <- dater(tr_drop_outgroup, sts, s=aln_len,  clock="strict", 
             maxit=1000, searchRoot=5, numStartConditions=10, quiet=F, ncpu=4)
