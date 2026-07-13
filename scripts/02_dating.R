@@ -38,134 +38,137 @@ md_match$num_date <- decimal_date(md_match$sampleCollectionDate)
 sts <- md_match$num_date
 names(sts) <- md_match$accessionVersion
 
-# any relevant to change default?
-# omega0, minblen, estimateSampleTimes_densities, meanRateLimits
+tr_rooted <- root(tr, outgroup = "NC_014373", resolve.root = T)
+plot(tr_rooted, show.tip.label = T)
 
-# root tree to minimise residuals from regression
-find_optimal_root <- function(tree, sampling_times, time_scale = 1) {
- # tree: phylo object with branch lengths
- # sampling_times: named numeric vector (names match tree$tip.label)
- # time_scale: convert times if needed (e.g., to years)
- 
- n_tips <- length(tree$tip.label)
- n_nodes <- tree$Nnode
- 
- residuals_list <- numeric(n_nodes)
- 
- # Try rooting at each internal node
- for (i in 1:n_nodes) {
-  node_id <- n_tips + i
-  rooted <- phytools::reroot(tree, node.number = node_id)
-  
-  # Calculate root-to-tip distances
-  root_tip_dist <- ape::dist.nodes(rooted)[n_tips + 1, 1:n_tips]
-  
-  # Get times for tips (in order of tree$tip.label)
-  times <- sampling_times[rooted$tip.label]
-  
-  # Regress distance ~ time
-  fit <- lm(root_tip_dist ~ times)
-  residuals_list[i] <- sum(residuals(fit)^2)
- }
- 
- optimal_idx <- which.min(residuals_list)
- optimal_node <- n_tips + optimal_idx
- 
- best_tree <- phytools::reroot(tree, node.number = optimal_node)
- 
- # Get final regression info
- root_tip_dist <- ape::dist.nodes(best_tree)[n_tips + 1, 1:n_tips]
- times <- sampling_times[best_tree$tip.label]
- final_fit <- lm(root_tip_dist ~ times)
- 
- return(list(
-  tree = best_tree,
-  fit = final_fit,
-  residuals = sum(residuals(final_fit)^2),
-  r_squared = summary(final_fit)$r.squared,
-  node_id = optimal_node
- ))
-}
-
-tr_rooted <- find_optimal_root(tr, sts)
-plot(tr_rooted$tree)
-summary(tr_rooted$fit)
-plot(sts[tr_rooted$tree$tip.label], 
-     ape::dist.nodes(tr_rooted$tree)[length(tr_rooted$tree$tip.label) + 1, 1:length(tr_rooted$tree$tip.label)])
-abline(tr_rooted$fit, col = "red", lwd = 2)
-
-tr_rooted <- tr_rooted$tree
+tr_drop_outgroup <- drop.tip(tr_rooted, tip="NC_014373")
+plot(tr_drop_outgroup, show.tip.label = T)
 
 # tr
-td <- dater(tr_rooted, sts, s=aln_len,  clock="strict", 
+td <- dater(tr_drop_outgroup, sts, s=aln_len,  clock="strict", 
             maxit=1000, searchRoot=5, numStartConditions=10, quiet=F, ncpu=4)
 plot(td, show.tip.label = T)
 
-td$mean.rate # 0.0004985478 (0.004114445 vs 0.00172937 10 seqs)
+td$mean.rate #  0.0003737813 (0.0004985478 vs 0.004114445 vs 0.00172937 10 seqs)
 td$adjusted.mean.rate # same
 # TODO too far back in past! Tried prev with Uganda samples and similar result!
 # probably related to rooting to minimise residuals! Tried it but still giving end of 2025 estim
-date_decimal(td$timeOfMRCA) #2025-12-16 ("2026-04-26 08:03:30 UTC" vs "2026-03-21 05:05:54 UTC")
+date_decimal(td$timeOfMRCA) # after rooting in outgroup and removing it: 2026-01-28
+#initially: 2025-12-16 ("2026-04-26 08:03:30 UTC" vs "2026-03-21 05:05:54 UTC")
 
 rootToTipRegressionPlot(td)
 # Root-to-tip mean rate: 0.000967085925693231 
 # Root-to-tip p value: 1.63614298888181e-05 
-# Root-to-tip R squared (variance explained): 0.139611227042518
+# Root-to-tip R squared (variance explained): 0.0046616579901538 vs 0.139611227042518
 
 # suggestion 1: similar to Rambaut's fixed rates analysis, but bounds to rate rather than testing only two
 # adjusted lower bound from 0.0012 to 0.0009
-td_fixed_rate <- dater(tr, sts, s=aln_len,  clock="strict", meanRateLimits = c(0.0009, 0.0019),
+td_fixed_rate <- dater(tr_drop_outgroup, sts, s=aln_len,  clock="strict", meanRateLimits = c(0.0009, 0.0019),
                        maxit=1000, searchRoot=5, numStartConditions=10, quiet=F, ncpu=4)
 # Fixing range of rate based on prev Ebola outbreaks give similar to their
-# 0.001261439 if 12 as lower bound
-# 0.001069195 if 9 as lower bound
+# 0.001283867 vs 0.001261439 if 12 as lower bound
+# 0.001136068 vs 0.001069195 if 9 as lower bound
 
-td_fixed_rate$mean.rate # 0.001069195 (0.001823019 vs 0.001632624 10 seqs)
-date_decimal(td_fixed_rate$timeOfMRCA) # 2026-03-10 (2026-04-10 vs 2026-03-17) 
-# now matches their estimates (08 Mar and 15 Mar)
+td_fixed_rate$mean.rate # 0.001136068 (0.001069195 vs 0.001823019 vs 0.001632624 10 seqs)
+date_decimal(td_fixed_rate$timeOfMRCA) # 2026-04-18 (2026-03-10 vs 2026-04-10 vs 2026-03-17) 
+# using tr: matches their estimates (08 Mar and 15 Mar)
+# using tr_drop_outgroup: 2026-04-18
 
 # suggestion 2: additive clock with meanRateLimits instead of strict clock
-td_additive_fixed_rate <- dater(tr, sts, s=aln_len,  clock="additive", meanRateLimits = c(0.0009, 0.0019),
+td_additive_fixed_rate <- dater(tr_drop_outgroup, sts, s=aln_len,  clock="additive", meanRateLimits = c(0.0009, 0.0019),
                                 maxit=10000, searchRoot=5, numStartConditions=10, quiet=F, ncpu=4)
 #NOTE: The estimated coefficient of variation of clock rates is high (>1).
-td_additive_fixed_rate$mean.rate # 0.0009342773 (0.0019 vs 0.001605298)
-date_decimal(td_additive_fixed_rate$timeOfMRCA) # 2026-03-06 (2026-04-14 vs 2026-03-18) 
+td_additive_fixed_rate$mean.rate # 0.0009 (0.0009342773 vs 0.0019 vs 0.001605298)
+date_decimal(td_additive_fixed_rate$timeOfMRCA) # 2026-04-07 vs (2026-03-06 vs 2026-04-14 vs 2026-03-18) 
 
 rootToTipRegressionPlot(td_additive_fixed_rate, show.tip.labels = T, textopts = list(cex = 0.5)) #0.1396
-tail_prob <- 0.05
+tail_prob <- 0.05 # 0.01 giving 0 outliers
 outliers <- outlierTips(td_additive_fixed_rate, alpha=tail_prob)
 hist(outliers$q)
 to_rm <- outliers[ outliers$q < tail_prob ,]
+nrow(to_rm)
 # 15 outliers
 # rm outliers
-tr2 <- drop.tip(tr, rownames(to_rm))
+tr2 <- drop.tip(tr_drop_outgroup, rownames(to_rm))
+
+# relaxedClockTest after outlierTips
+rct1 <- relaxedClockTest(tr2, sts, aln_len, quiet=F, ncpu=4)
+rct1
+rct1$strict_treedater
+# Time of common ancestor 
+# 2026.03838295281 
+# 
+# Time to common ancestor (before most recent sample) 
+# 0.435589649925532 
+# 
+# Weighted mean substitution rate (adjusted by branch lengths) 
+# 0.000338218149901144 
+# 
+# Unadjusted mean substitution rate 
+# 0.000338218149901144 
+rct1$relaxed_treedater
+# Time of common ancestor 
+# 2026.0367439475 
+# 
+# Time to common ancestor (before most recent sample) 
+# 0.437228655238414 
+# 
+# Weighted mean substitution rate (adjusted by branch lengths) 
+# 0.000345697301235511 
+# 
+# Unadjusted mean substitution rate 
+# 0.000346071709937856 
+# 
+# Clock model  
+# uncorrelated 
+# 
+# Coefficient of variation of rates 
+# 0.000805696293406743
+rct1$clock
+# strict
+
+rct2 <- relaxedClockTest(tr2, sts, aln_len, meanRateLimits = c(0.0009, 0.0019), quiet=F, ncpu=4)
+rct2$strict_treedater
+rct2$relaxed_treedater
+rct2$clock
+# "uncorrelated"
+# so result of relaxedClockTest depends if specify meanRateLimits
+
+# I guess probably ADAR sites not being masked and maybe over-masking at ends might be
+# why tmrca so diff compared to Rambaut's analysis when not specifying rate limits?
+# if decide to check later: https://github.com/artic-network/raccoon#typical-workflow
+
+# also using diagnoDating (in paper Erik/Xavier use outlierLineages and plotLikBranches). Run here to understand https://github.com/xavierdidelot/DiagnoDating/blob/main/reproducibility/outlier.R 
+# Not using diagnoDating to remove outliers so far... 
+# Not sure how to get the units in the plotLikBranches right, i.e., same units as bactDating.
+
 # re-estimate tree
 td_additive_fixed_rate2 <- dater(tr2, sts, s=aln_len,  clock="additive", meanRateLimits = c(0.0009, 0.0019),
                                 maxit=1000, searchRoot=5, numStartConditions=10, quiet=F, ncpu=4)
-td_additive_fixed_rate2$mean.rate # 0.0009668545 (0.0019 vs 0.001605298)
-date_decimal(td_additive_fixed_rate2$timeOfMRCA) # 2026-03-03
-rootToTipRegressionPlot(td_additive_fixed_rate2) #0.16358
+td_additive_fixed_rate2$mean.rate # 0.0009547757 (0.0009668545 vs 0.0019 vs 0.001605298)
+date_decimal(td_additive_fixed_rate2$timeOfMRCA) # 2026-04-11 (vs 2026-03-03)
+rootToTipRegressionPlot(td_additive_fixed_rate2) # 0.0032
 # Very similar to before
 
 # remove the ones Rambaut flagged as problematic
 # PP_0075ZAY not in md
 to_rm3 <- c("PP_0075Z66.1", "PP_00764TQ.1", "PP_00765FE.1")
-tr3 <- drop.tip(tr, to_rm3)
+tr3 <- drop.tip(tr_drop_outgroup, to_rm3)
 td_additive_fixed_rate3 <- dater(tr3, sts, s=aln_len,  clock="additive", meanRateLimits = c(0.0009, 0.0019),
                                  maxit=1000, searchRoot=5, numStartConditions=10, quiet=F, ncpu=4)
 
-td_additive_fixed_rate3$mean.rate # 0.0009502712 (0.0009668545)
-date_decimal(td_additive_fixed_rate3$timeOfMRCA) # 2026-03-03 (2026-03-03)
-rootToTipRegressionPlot(td_additive_fixed_rate3, show.tip.labels = T, textopts = list(cex=0.5)) # 0.2173 (0.16358)
+td_additive_fixed_rate3$mean.rate # 0.0009827949 (0.0009668545)
+date_decimal(td_additive_fixed_rate3$timeOfMRCA) # 2026-04-10 (2026-03-03)
+rootToTipRegressionPlot(td_additive_fixed_rate3, show.tip.labels = T, textopts = list(cex=0.5)) # 0.0144 (0.2173 vs 0.16358)
 
-pb_additive_fixed_rate <- treedater::parboot(td_additive_fixed_rate3, nreps=100, ncpu=4, quiet=F, overrideTempConstraint=F, overrideSearchRoot=F)
+pb_additive_fixed_rate <- treedater::parboot(td_additive_fixed_rate2, nreps=100, ncpu=4, quiet=F, overrideTempConstraint=F, overrideSearchRoot=F)
 pb_additive_fixed_rate$timeOfMRCA_CI
 date_decimal(as.numeric(pb_additive_fixed_rate$timeOfMRCA_CI))
-# 2026-01-12 to 2026-03-30 (2026-03-04 to 2026-04-18 vs 2023-02-06 to 2026-04-14)
-pb_additive_fixed_rate$meanRate_CI # 0.0007018393 0.0012866412 (0.001316129 0.002742892 vs 0.001148926 0.002369057)
+# 2026-02-13 to 2026-04-17 (2026-01-12 to 2026-03-30 vs 2026-03-04 to 2026-04-18 vs 2023-02-06 to 2026-04-14)
+pb_additive_fixed_rate$meanRate_CI # 0.0006664047 0.0013679325 (0.0007018393 0.0012866412 vs 0.001316129 0.002742892 vs 0.001148926 0.002369057)
 
 # plot tree (meanRateLimits disabled and strict clock, first version)
-mrsd_decimal <- max(td_additive_fixed_rate3$sts)
+mrsd_decimal <- max(td_additive_fixed_rate2$sts)
 mrsd_date <- as.Date(date_decimal(mrsd_decimal))
 mrsd_str <- format(mrsd_date, "%Y-%m-%d")
 # build node date lookup for all nodes
@@ -211,9 +214,9 @@ get_node_dates <- function(td_obj) {
  return(node_dates)  # length = n_tips + n_nodes
 }
 
-all_node_dates <- get_node_dates(td_additive_fixed_rate3)
-n_tips <- length(td_additive_fixed_rate3$tip.label)
-node_ids <- (n_tips + 1):(n_tips + td_additive_fixed_rate3$Nnode)
+all_node_dates <- get_node_dates(td_additive_fixed_rate2)
+n_tips <- length(td_additive_fixed_rate2$tip.label)
+node_ids <- (n_tips + 1):(n_tips + td_additive_fixed_rate2$Nnode)
 
 # data frame to attach via %<+%
 node_date_df <- data.frame(
@@ -221,7 +224,7 @@ node_date_df <- data.frame(
  node_label = format(as.Date(date_decimal(all_node_dates[node_ids])), "%Y-%m-%d")
 )
 
-p_labeled <- ggtree(td_additive_fixed_rate3, mrsd = mrsd_str) %<+% node_date_df +
+p_labeled <- ggtree(td_additive_fixed_rate2, mrsd = mrsd_str) %<+% node_date_df +
  #theme_tree2() +
  geom_tiplab(size = 3, align = TRUE, linesize = 0.3) +
  # date label on every internal node
@@ -246,14 +249,14 @@ ggsave(glue("{TR_DIR}/treedater_tree.png"), p_labeled, width=12, height=15, dpi=
 
 library(mlesky)
 
-range_tr <- mrsd_decimal - td_additive_fixed_rate3$timeOfMRCA # 0.30
+range_tr <- mrsd_decimal - td_additive_fixed_rate2$timeOfMRCA # 0.30
 range_tr_weeks <- ceiling(range_tr * 52.1775) # 16
 
-mlsk <- mlskygrid(td_additive_fixed_rate3, sampleTimes=sts, res=NULL, tau=NULL, tau_lower=0.001, tau_upper=100, 
+mlsk <- mlskygrid(td_additive_fixed_rate2, sampleTimes=sts, res=NULL, tau=NULL, tau_lower=0.001, tau_upper=100, 
                   ncross=10, ncpu=4, quiet=F, model=2)
 plot(mlsk, logy=T)
-mlsk$res # 8 (5 vs 4)
-mlsk$tau # 0.2128471 (0.154 vs 0.6074089)
+mlsk$res # 14 (8 vs 5 vs 4)
+mlsk$tau # 0.2020633 (0.2128471 vs 0.154 vs 0.6074089)
 
 mlsk_pboot <- mlesky::parboot(mlsk, nrep=1000, ncpu=4, dd=F)
 

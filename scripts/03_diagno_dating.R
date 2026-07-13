@@ -14,7 +14,7 @@ library(DescTools)
 # 2026_05_27_6pm, 2026_06_01_2pm
 TR_DIR <- "results/2026_07_09_5pm/"
 #tr <-read.tree(glue("{TR_DIR}/bdbv.treefile"))
-plot(tr3, show.tip.label = T)
+plot(tr2, show.tip.label = T)
 # 18940 - 10
 # 18940 - 50 - 36
 aln_len <- 18900 - 65 - 432 
@@ -25,10 +25,10 @@ DATA_DIR <- "data/2026_07_09_5pm/"
 F_NAME <- "ebola-bdbv_metadata_2026-07-09T1550.tsv"
 md <- read.csv(glue("{DATA_DIR}/{F_NAME}"), sep="\t")
 
-length(intersect(tr3$tip.label, md$accessionVersion)) #15
-md_match <- md %>% filter(accessionVersion %in% tr3$tip.label)
-md_match <- md_match %>% dplyr::slice(match(tr3$tip.label, accessionVersion))
-all(tr3$tip.label == md_match$accessionVersion)
+length(intersect(tr2$tip.label, md$accessionVersion)) #15
+md_match <- md %>% filter(accessionVersion %in% tr2$tip.label)
+md_match <- md_match %>% dplyr::slice(match(tr2$tip.label, accessionVersion))
+all(tr2$tip.label == md_match$accessionVersion)
 md_match$sampleCollectionDate <- as.Date(md_match$sampleCollectionDate)
 md_match$num_date <- decimal_date(md_match$sampleCollectionDate)
 
@@ -36,23 +36,27 @@ sts <- md_match$num_date
 names(sts) <- md_match$accessionVersion
 
 # rates <- c(0.0012, 0.0019)
-summary(tr3$edge.length)
-sum(tr3$edge.length)
-max(tr3$edge.length)
-hist(tr3$edge.length, breaks = 50)
-tr4 <- tr3
+summary(tr2$edge.length)
+sum(tr2$edge.length)
+max(tr2$edge.length)
+hist(tr2$edge.length, breaks = 50)
+tr4 <- tr2
 tr4$edge.length <- tr4$edge.length * aln_len
 hist(tr4$edge.length, breaks = 50)
 
 #bactdate_rate12 <- runDating(tree=tr4, dates=sts, algo = "BactDating", rate=0.0012*aln_len, keepRoot=F) #... ?bactdate shows all additional params
 bactdate_rate10 <- runDating(tree=tr4, dates=sts, algo = "BactDating", rate=0.0010*aln_len, keepRoot=F)
+#bactdate_rate10 <- bactdate(tree=tr4, date=sts, initMu=0.0010*aln_len, updateRoot=T)
 # Result from BactDating, model poisson, clock rate 22.08 subst/year, relaxation parameter 0.00, root date 2026.12 (mid-Feb)
 bactdate_rate19 <- runDating(tree=tr4, dates=sts, algo = "BactDating", rate=0.0019*aln_len, keepRoot=F)
+#bactdate_rate19 <- bactdate(tree=tr4, date=sts, initMu=0.0019*aln_len, updateRoot=T)
 # Result from BactDating, model poisson, clock rate 34.97, relaxation parameter 0.00, root date 2026.20 (mid-March)
 
 # tr4
-treedater_additive <- runDating(tree=tr3, dates=sts, algo = "treedater", keepRoot=F, # rate=...
-                                clock="additive", meanRateLimits = c(0.0009, 0.0019), 
+# treedater_additive <- runDating(tree=tr2, dates=sts, algo = "treedater", keepRoot=F,
+#                                 clock="additive", meanRateLimits = c(0.0009, 0.0019),
+#                                 maxit=1000, searchRoot=5, numStartConditions=10, quiet=F, ncpu=4)
+treedater_additive <- dater(tre=tr2, sts=sts, s=aln_len, clock="additive", meanRateLimits = c(0.0009, 0.0019),
                                 maxit=1000, searchRoot=5, numStartConditions=10, quiet=F, ncpu=4)
 # Result from treedater, model poisson, clock rate 1.20, relaxation parameter 0.00, root date 2026.33 (1st May)
 
@@ -69,7 +73,7 @@ run_diagno_diagnostics <- function(
  # Sanity checks
  stopifnot(is.list(dated_trees))
  stopifnot(!is.null(names(dated_trees)))
- stopifnot(all(sapply(dated_trees, inherits, "resDating")))
+ #stopifnot(all(sapply(dated_trees, inherits, "resDating")))
  stopifnot(is.numeric(sts) && !is.null(names(sts)))
  stopifnot(is.numeric(aln_len) && length(aln_len) == 1 && aln_len > 0)
  
@@ -126,7 +130,17 @@ run_diagno_diagnostics <- function(
  # Loop over each dated tree
  for (nm in names(dated_trees)) {
   
-  r <- dated_trees[[nm]]
+  if("treedater" %in% class(dated_trees[[nm]])) {
+   r <- resDating(dated_trees[[nm]], tr2)
+   print(attributes(r))
+   print("a")
+  } else {
+   #r <- resDating(dated_trees[[nm]], tr4)
+   r <- dated_trees[[nm]]
+   print("b")
+  }
+  
+  #r <- dated_trees[[nm]]
   is_bayesian <- has_posterior(r)
   
   message("\n========================================")
