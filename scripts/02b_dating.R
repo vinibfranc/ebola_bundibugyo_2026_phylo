@@ -135,6 +135,7 @@ rootToTipRegressionPlot( td1a)
 # 
 
 
+# bootstrap 
 btd <- treedater::boot( td1a, btres, ncpu = 8, overrideTempConstraint = FALSE, quiet=FALSE  )
 btd
 #                            pseudo ML        2.5 %       97.5 %
@@ -145,6 +146,10 @@ btd
 date_decimal( btd$timeOf )
 #                      2.5%                     97.5% 
 # "2026-01-06 18:48:49 UTC" "2026-03-29 04:06:48 UTC" 
+
+
+# parametric bootstrap 
+# pbtd <- treedater::parboot( td1a, nreps=200, ncpu=8, quiet=F, overrideTempConstraint=F, overrideSearchRoot=F)
 
 
 # bact dating 
@@ -174,31 +179,25 @@ bd1a
 #EV mean rate is okay, but the root is not plausible 
 
 
-# diagnodating 
+# diagnodating
+# NEEDS DiagnoDating >= 0.9.1, ie the fix-treedater-units branch (PR #1), which is where the
+# additive clock, the seqlen argument and matching of named dates were fixed. Before that,
+# treedater results always came back as model='poisson' with relax=0:
+#   devtools::install_github('xavierdidelot/DiagnoDating', ref = 'fix-treedater-units')
 roottotip( tr1, sts )
 
-runTreeDater2=function(tre,dates,keepRoot=F,seqlen=NA, ...) {
-	stopifnot( !is.na(seqlen ))
-	if (!keepRoot)  tre=unroot(tre)
-	sts=dates
-	if ( is.null( names( sts) )) names(sts)=tre$tip.label
-	o=capture.output(rtd<-suppressWarnings(treedater::dater(tre,sts, s = seqlen,...)))
-	model <- 'poisson'
-	relax = 0
-	if ( 'clock' %in% ...names() ) model <- list(...)[['clock']]
-	if ( model == 'additive') {
-		model <- 'arc'
-		 relax = rtd$sp 
-	}
-	## rescale 
-	tre$edge.length<- tre$edge.length * seqlen 
-	res=resDating(rtd,tre,algo='treedater',model=model,rate=rtd$mean.rate*seqlen,relax=relax,rootdate=rtd$timeOfMRCA)
-	# return(list( rtd, res) )
-	return(res)
-}
-ddtd <- runTreeDater2(tr1, sts,  keepRoot = TRUE, seqlen = aln_len,  omega0 = td1a$mean.rate
-	, meanRateLimits = td1a$mean.rate*c(1,1+1e-6)
-	, clock = 'additive')
+# DiagnoDating, like BactDating, wants branch lengths in substitutions rather than per site,
+# so rescale the tree. seqlen then tells treedater how to convert back, and omega0 and
+# meanRateLimits stay in treedater's own units of substitutions per site per year.
+trdd <- tr1
+trdd$edge.length <- trdd$edge.length * aln_len
+
+ddtd <- runDating( trdd, sts[ tr1$tip.label ], algo = 'treedater', keepRoot = TRUE
+	, seqlen = aln_len
+	, clock = 'additive'
+	, omega0 = td1a$mean.rate
+	, meanRateLimits = td1a$mean.rate*c(1,1+1e-6) )
+ddtd # rate is per genome per year, so comparable to mu from bd1a; relax comparable to sigma
 plotLikBranches( ddtd )
 plotResid( ddtd )
 testResid( ddtd )
@@ -228,3 +227,31 @@ llprof <- llprof[2,]
 # plot( omegas, llprof )
 source( './profplot-02b.R')
 prpl <- profplot( omegas, llprof )
+
+
+
+
+# mlesky 
+library(mlesky)
+range_tr <- max(sts) - td1a$timeOfMRCA #
+# [1] 0.2772165
+range_tr_weeks <- ceiling(range_tr * 52.1775) # 
+# [1] 15
+mlsk <- mlskygrid(td1a, sampleTimes=sts, res=NULL, tau=NULL, tau_lower=0.001, tau_upper=100, 
+                  ncross=10, ncpu=4, quiet=F, model=2)
+plot(mlsk, logy=T)
+mlsk$res #
+# [1] 17
+mlsk$tau 
+# [1] 0.185064
+
+mlsk_pboot <- mlesky::parboot(mlsk, nrep=1000, ncpu=8, dd=F)
+# regular bootstrap NEEDS mlesky >= 0.1.9: #   devtools::install_github('emvolz-phylodynamics/mlesky')
+# bmlsk <- mlesky::boot( mlsk, btd$trees, ncpu = 8, sampleTimes = sts )
+
+# png(glue("{TR_DIR}/mlesky.png"), width=10, height=8, units="in", res=300)
+plot(mlsk_pboot, logy=T, ggplot=T)
+# dev.off()
+#
+
+
