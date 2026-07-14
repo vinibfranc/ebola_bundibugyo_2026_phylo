@@ -48,7 +48,9 @@ plot(tr_drop_outgroup, show.tip.label = T)
 
 # tr
 td <- dater(tr_drop_outgroup, sts, s=aln_len,  clock="strict", 
-            maxit=1000, searchRoot=5, numStartConditions=10, quiet=F, ncpu=4)
+            maxit=1000
+ , numStartConditions=10
+ , quiet=F, ncpu=4)
 plot(td, show.tip.label = T)
 
 td$mean.rate #  0.0003737813 (0.0004985478 vs 0.004114445 vs 0.00172937 10 seqs)
@@ -65,11 +67,45 @@ rootToTipRegressionPlot(td)
 
 # suggestion 1: similar to Rambaut's fixed rates analysis, but bounds to rate rather than testing only two
 # adjusted lower bound from 0.0012 to 0.0009
-td_fixed_rate <- dater(tr_drop_outgroup, sts, s=aln_len,  clock="strict", meanRateLimits = c(0.0009, 0.0019),
-                       maxit=1000, searchRoot=5, numStartConditions=10, quiet=F, ncpu=4)
+td_fixed_rate <- dater(tr_drop_outgroup, sts, s=aln_len,  clock="strict", meanRateLimits = c(0.0009, 0.0019), numStartConditions = 20,
+                       maxit=1000, quiet=F, ncpu=4)
 # Fixing range of rate based on prev Ebola outbreaks give similar to their
 # 0.001283867 vs 0.001261439 if 12 as lower bound
 # 0.001136068 vs 0.001069195 if 9 as lower bound
+
+# comparing loglik across starts gives similar outcome 
+td0 <- dater(tr_drop_outgroup, sts, s=aln_len,  clock="strict", meanRateLimits = c(0.0009, 0.0019), omega0=1e-3, maxit=1000, quiet=F, ncpu=4)
+td1 <- dater(tr_drop_outgroup, sts, s=aln_len,  clock="strict", meanRateLimits = c(0.0009, 0.0019), omega0=1.5e-3, maxit=1000, quiet=F, ncpu=4)
+td2 <- dater(tr_drop_outgroup, sts, s=aln_len,  clock="strict", meanRateLimits = c(0.0009, 0.0019), omega0=1.9e-3, maxit=1000, quiet=F, ncpu=4)
+c( td0$loglik , td1$loglik, td2$loglik )
+td0
+# 
+# Phylogenetic tree with 126 tips and 125 internal nodes.
+# 
+# Tip labels:
+#   PP_006XHKB.2, PP_00764EH.1, PP_00765UM.1, PP_0076617.1, PP_00765M1.1, PP_0076SYS.1, ...
+# Node labels:
+#   , 0/72, 75/73, 0/21, 0/4, 0/7, ...
+# 
+# Rooted; includes branch length(s).
+# 
+#  Time of common ancestor 
+# 2026.28982453704 
+# 
+#  Time to common ancestor (before most recent sample) 
+# 0.184148065700583 
+# 
+#  Weighted mean substitution rate (adjusted by branch lengths) 
+# 0.00108960990682649 
+# 
+#  Unadjusted mean substitution rate 
+# 0.00108960990682649 
+# 
+#  Clock model  
+# strict 
+# 
+#  Coefficient of variation of rates 
+# 0 
 
 td_fixed_rate$mean.rate # 0.001136068 (0.001069195 vs 0.001823019 vs 0.001632624 10 seqs)
 date_decimal(td_fixed_rate$timeOfMRCA) # 2026-04-18 (2026-03-10 vs 2026-04-10 vs 2026-03-17) 

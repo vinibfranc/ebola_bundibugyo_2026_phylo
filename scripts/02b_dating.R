@@ -210,3 +210,21 @@ testResid( ddtd )
 # data:  n
 # An = 1.915, p-value = 0.1024
 # 
+
+
+
+# lik profile 
+ratetologlik <- function(omega){
+	print( omega )
+	# dater(tr1, sts, s=aln_len,  clock="additive", omega0 = omega, meanRateLimits = omega*c(1,1+1e-1), maxit=1, quiet=TRUE, ncpu=4)$loglik
+	td <- dater(tr1, sts, s=aln_len,  clock="additive", omega0 = omega, meanRateLimits = omega*c(.9,1.4), quiet=TRUE, ncpu=4)
+	c( td$adjusted.mean.rate, td$loglik )
+}
+omegas <- seq( 0.0001, 0.002, length.out = 30)
+# omegas <- seq( 0.0004, 0.0008, length.out = 30)
+llprof <- sapply( omegas, ratetologlik )
+omegas <- llprof[1,]
+llprof <- llprof[2,]
+# plot( omegas, llprof )
+source( './profplot-02b.R')
+prpl <- profplot( omegas, llprof )
