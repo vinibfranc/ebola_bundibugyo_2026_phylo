@@ -346,7 +346,7 @@ geo_tree_fig <- function(tree, root_date, title) {
 		scale_size_continuous(range=c(0.6,3), guide="none") +
 		scale_x_continuous(breaks=mb+off, labels=ml, limits=c(min(ci[1]+off, rootx)-0.02, max(sts)+off+0.02)) +
 		labs(title=title,
-		     subtitle=glue("{nt} genomes | {phy$Nnode} internal nodes | MRCA {format(as.Date(date_decimal(root_date)),'%d %b %Y')} | {ntrans} parsimony geographic transitions")) +
+		     subtitle=glue("{nt} genomes | {phy$Nnode} internal nodes | MRCA {format(as.Date(date_decimal(root_date)),'%d %b %Y')}")) +
 		theme_tree2() +
 		theme(plot.title=element_text(face="bold",size=12), plot.subtitle=element_text(size=8.5,color="grey40"),
 		      axis.text.x=element_text(size=9,color="grey40"), legend.position=c(0.12,0.75),
