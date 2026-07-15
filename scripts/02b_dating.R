@@ -67,7 +67,7 @@ print( setdiff( td0$tip.label, td1$tip.label))
 
 
 # clock test 
-rct <- relaxedClockTest(tr1, sts, aln_len, meanRateLimits = c(0.0009, 0.0019), quiet=F, ncpu=8, overrideTempConstraint = FALSE)
+rct <- relaxedClockTest(tr1, sts, aln_len, meanRateLimits = c(0.0005, 0.002), quiet=F, ncpu=8, overrideTempConstraint = FALSE, nreps = 1e3)
 
 td1u <- dater(tr1, sts, s=aln_len,  clock="uncorrelated", meanRateLimits = c(0.0005, 0.002), numStartConditions = 20, quiet=F, ncpu=4)
 td1a <- dater(tr1, sts, s=aln_len,  clock="additive", meanRateLimits = c(0.0005, 0.002), numStartConditions = 20, quiet=F, ncpu=4)

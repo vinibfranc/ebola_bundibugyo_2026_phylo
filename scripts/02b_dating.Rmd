@@ -17,7 +17,9 @@ output:
 knitr::opts_chunk$set(
   echo = TRUE,
   message = FALSE,
-  warning = FALSE
+  warning = FALSE,
+  autodep = TRUE,      # track inter-chunk dependencies so cached chunks invalidate correctly
+  cache.lazy = FALSE   # eager-load cached objects (safer for large fits like btd)
 )
 # Force knitr to use the R session's working directory)
 knitr::opts_knit$set(root.dir = here::here())
@@ -144,7 +146,7 @@ tr <- .rootanddrop(tr)
 
 ### 3.1 Root & subsample bootstrap trees
 
-```{r bootstrap-trees}
+```{r bootstrap-trees, cache=TRUE}
 nboot <- 200
 btres <- read.tree(glue("{TR_DIR}/bdbv.ufboot"))
 btres <- btres[sample.int(length(btres), size = nboot, replace = FALSE)]
@@ -155,7 +157,7 @@ btres <- lapply(btres, .rootanddrop)
 
 ## 4. Initial clock dating (strict)
 
-```{r initial-dating, class.output="scroll-300"}
+```{r initial-dating, cache=TRUE, class.output="scroll-300"}
 td0 <- dater(
   tr, sts, s = aln_len,
   clock = "strict",
@@ -170,7 +172,7 @@ td0 <- dater(
 
 ## 5. Outlier Removal
 
-```{r outlier-removal}
+```{r outlier-removal, cache=TRUE}
 .otips <- function(td) {
   ot <- outlierTips(td)
   ot[ot$q < 0.05, "taxon"]
@@ -202,18 +204,25 @@ print(setdiff(td0$tip.label, td1$tip.label))
 
 ### 6.1 Relaxed clock test
 
-```{r relaxed-clock-test, class.output="scroll-300"}
+```{r relaxed-clock-test, eval=FALSE, class.output="scroll-300"}
 rct <- relaxedClockTest(
   tr1, sts, aln_len,
   meanRateLimits = c(0.0005, 0.002),
-  quiet = FALSE, ncpu = 8, nreps=100,
+  quiet = FALSE, ncpu = 8, nreps=5000,
   overrideTempConstraint = FALSE
-)
+) 
+
+```
+
+```
+Best clock model:  strict 
+Null distribution of rate coefficient of variation: 0.000571629763668337 0.000823308918992667 
+Returning best treedater fit
 ```
 
 ### 6.2 Fit uncorrelated & additive relaxed clocks
 
-```{r relaxed-clock-fits1, class.output="scroll-300"}
+```{r relaxed-clock-fits1, cache=TRUE, class.output="scroll-300"}
 # Uncorrelated
 td1u <- dater(
   tr1, sts, s = aln_len,
@@ -224,7 +233,7 @@ td1u <- dater(
 )
 ```
 
-```{r relaxed-clock-fits2, class.output="scroll-300"}
+```{r relaxed-clock-fits2, cache=TRUE, class.output="scroll-300"}
 # Additive
 td1a <- dater(
   tr1, sts, s  = aln_len,
@@ -239,6 +248,7 @@ td1a <- dater(
 ```{r relaxed-clock-fits3}
 # Compare log-likelihoods: uncorrelated vs additive
 c(td1u$loglik, td1a$loglik)
+td1a
 ```
 
 ### 6.3 Inspect best-fit model (strict)
@@ -267,7 +277,7 @@ rootToTipRegressionPlot(td1)
 
 ## 7. Bootstrap for confidence intervals (from iqtree ufboot distribution)
 
-```{r bootstrap-dating, class.output="scroll-300"}
+```{r bootstrap-dating, cache=TRUE, class.output="scroll-300"}
 # Bootstrap
 btd <- treedater::boot(
   td1, btres,
@@ -286,7 +296,7 @@ date_decimal(btd$timeOf)
 
 ## 8. BactDating
 
-```{r bactdating}
+```{r bactdating, cache=TRUE}
 trbd1 <- tr1
 trbd1$edge.length <- trbd1$edge.length * aln_len
 
@@ -299,7 +309,7 @@ bd1a <- bactdate(
 bd1a
 ```
 
-> **Note:** The estimated mean rate from BactDating is consistent with treedater, but the inferred root date may not be biologically plausible.
+> **Note:** The estimated mean rate from BactDating is consistent with treedater, but the inferred root date is unusually early. 
 
 
 ---
@@ -332,7 +342,7 @@ trdd$edge.length <- trdd$edge.length * aln_len
 
 ```{r diagnodating-run}
 ddtd <- runDating( trdd, sts[ tr1$tip.label ], algo = 'treedater', keepRoot = TRUE, 
-                   seqlen = aln_len, clock = 'strict', omega0 = td1$mean.rate, meanRateLimits = td1$mean.rate*c(1,1+1e-6) ) #additive
+                   seqlen = aln_len, clock = 'strict', omega0 = td1$mean.rate, meanRateLimits = td1$mean.rate*c(1,1+1e-6) ) #
 ```
 
 ```{r diagnodating-plots}
@@ -350,17 +360,15 @@ testResid(ddtd)
 
 ## 10. Profile likelihood for the clock rate
 
-```{r lik-profile1, results='hide'}
+```{r lik-profile1, cache=TRUE, results='hide'}
+
 ratetologlik <- function(omega){
-	print( omega )
-	td <- dater(tr1, sts, s=aln_len,  clock="additive", omega0 = omega, meanRateLimits = omega*c(.9,1.4), quiet=TRUE, ncpu=4)
-	c( td$adjusted.mean.rate, td$loglik )
+	capture.output( x <- sapply( btres, function(tr) dater(tr, sts, s=aln_len,  clock="strict", omega0 = omega, meanRateLimits = omega*c(.98,1.02), quiet=TRUE, ncpu=1)$loglik ) )
+	x |> pomp::logmeanexp()
 }
 
 omegas <- seq( 0.0001, 0.002, length.out = 30)
-llprof <- sapply( omegas, ratetologlik )
-omegas <- llprof[1,]
-llprof <- llprof[2,]
+llprof <- unlist( parallel::mclapply( omegas, ratetologlik, mc.cores=8 ) )
 source( 'scripts/profplot-02b.R')
 ```
 ```{r lik-profile2}
@@ -379,7 +387,7 @@ range_tr_weeks <- ceiling(range_tr * 52.1775)
 range_tr_weeks
 ```
 
-```{r mlesky2, results='hide'}
+```{r mlesky2, cache=TRUE, results='hide'}
 mlsk <- mlskygrid(td1, sampleTimes=sts, res=NULL, tau=NULL, tau_lower=0.001, tau_upper=100, 
                   ncross=10, ncpu=4, quiet=F, model=2)
 plot(mlsk, logy=T)
@@ -387,7 +395,7 @@ mlsk$res
 mlsk$tau 
 ```
 
-```{r mlesky3, results='hide'}
+```{r mlesky3, cache=TRUE, results='hide'}
 mlsk_pboot <- mlesky::parboot(mlsk, nrep=1000, ncpu=8, dd=F)
 # regular bootstrap NEEDS mlesky >= 0.1.9: # devtools::install_github('emvolz-phylodynamics/mlesky')
 # bmlsk <- mlesky::boot( mlsk, btd$trees, ncpu = 8, sampleTimes = sts )
@@ -398,7 +406,7 @@ plot(mlsk_pboot, logy=T, ggplot=T)
 
 ## 12. Ancestral state estimation with tree figure
 
-```{r treefig}
+```{r treefig, fig.width=10, fig.height=15}
 library(phangorn)
 
 collapse_dated <- function(td, aln_len, min_subs = 0.5) {
@@ -468,7 +476,7 @@ geo_tree_fig <- function(tree, root_date, title) {
 		scale_size_continuous(range=c(0.6,3), guide="none") +
 		scale_x_continuous(breaks=mb+off, labels=ml, limits=c(min(ci[1]+off, rootx)-0.02, max(sts)+off+0.02)) +
 		labs(title=title,
-		     subtitle=glue("{nt} genomes | {phy$Nnode} internal nodes | MRCA {format(as.Date(date_decimal(root_date)),'%d %b %Y')} | {ntrans} parsimony geographic transitions")) +
+		     subtitle=glue("{nt} genomes | {phy$Nnode} internal nodes | MRCA {format(as.Date(date_decimal(root_date)),'%d %b %Y')} ")) +
 		theme_tree2() +
 		theme(plot.title=element_text(face="bold",size=12), plot.subtitle=element_text(size=8.5,color="grey40"),
 		      axis.text.x=element_text(size=9,color="grey40"), legend.position=c(0.12,0.75),
