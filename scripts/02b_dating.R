@@ -358,8 +358,7 @@ geo_tree_fig <- function(tree, root_date, title) {
 # ggsave(glue("{TR_DIR}/treedater_geo_tree.png"), pg_full, width=10, height=12, dpi=300)
 # (2) same tree with near-zero internal branches (< 0.5 substitution) collapsed to polytomies
 td1a_collapsed <- collapse_dated(td1a, aln_len, min_subs = 0.5)
-pg_coll <- geo_tree_fig(td1a_collapsed, td1a_collapsed$root.time,
-                        "")
+pg_coll <- geo_tree_fig(td1a_collapsed, td1a_collapsed$root.time, "")
 print(pg_coll)
 # ggsave(glue("{TR_DIR}/treedater_geo_tree_collapsed.png"), pg_coll, width=10, height=12, dpi=300)
 
