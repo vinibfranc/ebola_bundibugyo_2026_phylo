@@ -5,7 +5,7 @@ To generate the Rmarkdown report for the dating analysis:
 ```
 rmarkdown::render(
     input = "scripts/02b_dating.Rmd",
-    output_file = "BDBV_2026_dating.html",
+    output_file = "index.html",
     output_dir = "."
 )
 ```

@@ -6,3 +6,6 @@ data/
 results/
 scripts/bkp.R
 scripts/old/
+
+index_files/
+scripts/02b_dating_cache/
